@@ -3,7 +3,7 @@
 This is an Android app designed to load and extract frames from video files. It utilizes Jetpack Compose for UI deavelopment, and OpenCV is integrated for frame extraction functionality. The app also leverages Kotlin and various Android libraries for efficient media handling.
 
 ## Current Error
-### TL:DR :- Gradle Issue (Also, Due to error in Gradle, Now able to write fully code for android native which is not difficult for me)
+### TL:DR :- Gradle Issue (Also, Due to error in Gradle, Not able to write fully code for android native which is not difficult for me, like pic video form galary and save it)
 
 ### Error: Backend Internal Error
 
