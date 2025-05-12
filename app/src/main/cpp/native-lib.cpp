@@ -1,44 +1,65 @@
 #include <jni.h>
-#include <string>
+#include <opencv2/opencv.hpp>
+#include <android/bitmap.h>
+#include <android/log.h>
 
-#include <opencv2/core.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/imgcodecs.hpp>
+#define TAG "NativeFrameExtractor"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, TAG, __VA_ARGS__)
 
 using namespace cv;
 
-extern "C" {
+extern "C"
+JNIEXPORT jobject JNICALL
+Java_com_streamliners_imageload_ImageProcessor_extractFrameAt(
+        JNIEnv *env,
+        jobject /* this */,
+        jstring videoPath_,
+        jdouble timestampSeconds
+) {
+    const char *videoPath = env->GetStringUTFChars(videoPath_, nullptr);
 
-JNIEXPORT jbyteArray JNICALL
-Java_com_streamliners_imageload_ImageProcessor_adjustBrightnessContrast(
-        JNIEnv *env, jobject thiz,
-        jbyteArray image_data, jfloat brightness, jfloat contrast) {
-
-    // Step 1: Copy jbyteArray to std::vector<uchar>
-    jsize length = env->GetArrayLength(image_data);
-    std::vector<uchar> buf(length);
-    env->GetByteArrayRegion(image_data, 0, length, reinterpret_cast<jbyte*>(buf.data()));
-
-    // Step 2: Decode the image buffer into OpenCV Mat
-    cv::Mat img = cv::imdecode(buf, cv::IMREAD_COLOR);  // Auto-detect image type
-    if (img.empty()) {
-        return nullptr;  // Error decoding
+    VideoCapture cap(videoPath);
+    if (!cap.isOpened()) {
+        LOGI("Failed to open video");
+        env->ReleaseStringUTFChars(videoPath_, videoPath);
+        return nullptr;
     }
 
-    // Step 3: Adjust brightness & contrast
-    cv::Mat output;
-    img.convertTo(output, -1, contrast, brightness);  // new = img*contrast + brightness
+    cap.set(CAP_PROP_POS_MSEC, timestampSeconds * 1000);  // Go to timestamp
 
-    // Step 4: Encode the processed Mat back to JPEG
-    std::vector<uchar> encoded;
-    cv::imencode(".jpg", output, encoded);
+    Mat frame;
+    cap >> frame;
+    cap.release();
+    env->ReleaseStringUTFChars(videoPath_, videoPath);
 
-    // Step 5: Create a new jbyteArray to return
-    jbyteArray result = env->NewByteArray(encoded.size());
-    env->SetByteArrayRegion(result, 0, encoded.size(), reinterpret_cast<jbyte*>(encoded.data()));
+    if (frame.empty()) {
+        LOGI("Empty frame at timestamp %.2f", timestampSeconds);
+        return nullptr;
+    }
 
-    return result;
+    // Convert to RGBA
+    cvtColor(frame, frame, COLOR_BGR2RGBA);
+
+    // Prepare Bitmap
+    jclass bitmapCls = env->FindClass("android/graphics/Bitmap");
+    jmethodID createBitmap = env->GetStaticMethodID(
+            bitmapCls, "createBitmap",
+            "(IILandroid/graphics/Bitmap$Config;)Landroid/graphics/Bitmap;");
+
+    jstring configName = env->NewStringUTF("ARGB_8888");
+    jclass bitmapConfigCls = env->FindClass("android/graphics/Bitmap$Config");
+    jmethodID valueOf = env->GetStaticMethodID(bitmapConfigCls, "valueOf",
+                                               "(Ljava/lang/String;)Landroid/graphics/Bitmap$Config;");
+    jobject bitmapConfig = env->CallStaticObjectMethod(bitmapConfigCls, valueOf, configName);
+
+    jobject bitmap = env->CallStaticObjectMethod(bitmapCls, createBitmap,
+                                                 frame.cols, frame.rows, bitmapConfig);
+
+    // Lock pixels
+    void *pixels;
+    AndroidBitmap_lockPixels(env, bitmap, &pixels);
+    memcpy(pixels, frame.data, frame.total() * frame.elemSize());
+    AndroidBitmap_unlockPixels(env, bitmap);
+
+    return bitmap;
 }
-
-}
-

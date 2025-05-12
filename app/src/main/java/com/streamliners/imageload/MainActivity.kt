@@ -11,7 +11,6 @@ import com.streamliners.imageload.databinding.ActivityMainBinding
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var binding: ActivityMainBinding
     val pickImageIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
 
 
@@ -19,9 +18,8 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            ImageProcessingScreen()
+            ExtractFrameScreen()
         }
-
 
         startActivityForResult(pickImageIntent, 111)
 
@@ -34,13 +32,11 @@ class MainActivity : AppCompatActivity() {
             val selectedImageUri = data?.data
             val inputStream = contentResolver.openInputStream(selectedImageUri!!)
             val imageBytes = inputStream?.readBytes()
-            // Now you can pass this byte array to the C++ function
         }
     }
 
 
     companion object {
-        // Used to load the 'imageload' library on application startup.
         init {
             System.loadLibrary("imageload")
         }
