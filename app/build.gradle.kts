@@ -17,6 +17,12 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        ndk {
+            // Specify the ABI filters for the project
+            abiFilters += "arm64-v8a"; "armeabi-v7a"; "x86"; "x86_64"
+        }
+
     }
 
     buildTypes {
@@ -41,6 +47,7 @@ android {
             version = "3.22.1"
         }
     }
+
 
     buildFeatures {
         viewBinding = true
